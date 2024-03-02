@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <declare-styleable name="CastomView">
+        <attr name="borderColor" format="color"/>
+        <attr name="borderWidth" format="dimension"/>
+        <attr name="initials" format="string"/>
+    </declare-styleable>
+
+    <declare-styleable name="CastomViewShader">
+        <attr name="borderColor_shader" format="color"/>
+        <attr name="borderWidth_shader" format="dimension"/>
+        <attr name="initials_shader" format="string"/>
+    </declare-styleable>
+
+    <declare-styleable name="AvatarImageView">
+        <attr name="borderColor_shader_s" format="color"/>
+        <attr name="borderWidth_shader_s" format="dimension"/>
+        <attr name="initials_shader_s" format="string"/>
+    </declare-styleable>
+</resources>
