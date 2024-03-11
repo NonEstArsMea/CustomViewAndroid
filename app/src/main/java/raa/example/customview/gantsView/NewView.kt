@@ -12,6 +12,7 @@ import android.text.TextPaint
 import android.util.AttributeSet
 import android.view.View
 import androidx.core.content.ContextCompat
+import raa.example.customview.CellClass
 import raa.example.customview.R
 import java.time.LocalDate
 
@@ -25,8 +26,6 @@ class NewView @JvmOverloads constructor(
     private val minRowHight = 150
     private val namesRowHight = 120
 
-    // Отвечает за зум и сдвиги
-    private val transformations = Transformations()
 
 
     private val rowPaint = Paint().apply {
@@ -100,16 +99,17 @@ class NewView @JvmOverloads constructor(
 
 
     private fun Canvas.drawPeriods() {
-        val currentPeriods = listOf("123","345","345","34522222","342222225")
+        val currentPeriods = listOf("__2 ","___3 ","_____5 ","___3 ","______6 ")
         val nameY = periodNamePaint.getTextBaselineByCenter(minRowHight / 2f)
+        var lastX = 0f
         currentPeriods.forEachIndexed { index, periodName ->
             // По X текст рисуется относительно его начала
             val textWidth = periodNamePaint.measureText(periodName)
-            val periodCenter = periodWidth * transformations.scaleX * (index + 0.5f)
-            val nameX = (periodCenter - (textWidth / 2)) + transformations.translationX
+            val nameX = lastX
             drawText(periodName, nameX, nameY, periodNamePaint)
+            lastX += textWidth
             // Разделитель
-            val separatorX = periodWidth * (index + 1f) * transformations.scaleX + transformations.translationX
+            val separatorX = lastX
             drawLine(separatorX, 0f, separatorX, height.toFloat(), separatorsPaint)
         }
     }
@@ -122,12 +122,12 @@ class NewView @JvmOverloads constructor(
     }
 
 
-    private var timeTable: List<String> = emptyList()
-    private var uiTimeTable: List<String> = emptyList()
+    private var timeTable: List<CellClass> = emptyList()
+    private var uiTimeTable: List<CellClass> = emptyList()
 
     private val periodWidth = 100f
 
-    fun setTimeTable(timeTable: List<String>) {
+    fun setTimeTable(timeTable: List<CellClass>) {
         if (timeTable != this.timeTable) {
             this.timeTable = timeTable
             //uiTimeTable = timeTable.map(::)
@@ -138,38 +138,6 @@ class NewView @JvmOverloads constructor(
         }
     }
 
-    private inner class Transformations {
-        var translationX = 0f
-            private set
-        var scaleX = 1f
-            private set
-
-        // Матрица для преобразования фигур тасок
-        private val matrix = Matrix()
-
-        // На сколько максимально можно сдвинуть диаграмму
-        private val minTranslation: Float
-            get() = (width - contentWidth * transformations.scaleX).coerceAtMost(0f)
-
-        // Относительный сдвиг на dx
-        fun addTranslation(dx: Float) {
-            translationX = (translationX + dx).coerceIn(minTranslation, 0f)
-        }
-
-        // Относительное увеличение на sx
-        fun addScale(sx: Float) {
-            scaleX = (scaleX * sx).coerceIn(1f, MAX_SCALE)
-            recalculateTranslationX()
-        }
-
-
-
-        // Когда изменился scale или размер View надо пересчитать сдвиг
-        private fun recalculateTranslationX() {
-            translationX = translationX.coerceIn(minTranslation, 0f)
-        }
-
-    }
 
 //    private inner class UiTask(val task: Task) {
 //        // Rect с учетом всех преобразований
