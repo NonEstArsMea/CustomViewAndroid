@@ -8,6 +8,7 @@ import android.graphics.Paint
 import android.graphics.Path
 import android.graphics.Rect
 import android.graphics.RectF
+import android.text.StaticLayout
 import android.text.TextPaint
 import android.util.AttributeSet
 import android.view.View
@@ -23,9 +24,18 @@ class NewView @JvmOverloads constructor(
 ) : View(context, attrs, defStyleAttr) {
 
 
-    private val minRowHight = 150
-    private val namesRowHight = 120
+    private val minRowHight = 250
+    private val namesRowHight = 170
 
+    private val timeStartOfLessonsList = listOf(
+        "9:00", "10:30",
+        "9:00", "10:30",
+        "9:00", "10:30",
+        "9:00", "10:30",
+        "9:00", "10:30",
+    )
+
+    private val dateTextSize = 200f
 
 
     private val rowPaint = Paint().apply {
@@ -38,12 +48,20 @@ class NewView @JvmOverloads constructor(
         color = Color.GRAY
     }
 
-    private val contentWidth: Int
-        get() = (periodWidth * 6).toInt()
+    private val mainSeparatorsPaint = Paint().apply {
+        strokeWidth = 2f
+        color = Color.BLACK
+    }
 
 
     private val periodNamePaint = TextPaint(Paint.ANTI_ALIAS_FLAG).apply {
         textSize = resources.getDimension(R.dimen.gant_period_name_text_size)
+        color = ContextCompat.getColor(context, R.color.grey_500)
+    }
+
+    private val dateNamePaint = TextPaint(Paint.ANTI_ALIAS_FLAG).apply {
+        textSize = resources.getDimension(R.dimen.gant_period_name_text_size)
+        isFakeBoldText = true
         color = ContextCompat.getColor(context, R.color.grey_500)
     }
 
@@ -52,8 +70,8 @@ class NewView @JvmOverloads constructor(
 
     // Чередующиеся цвета строк
     private val rowColors = listOf(
-        Color.BLUE,
-        Color.GREEN
+        ContextCompat.getColor(context, R.color.red_themes_500),
+        Color.WHITE
     )
 
     override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
@@ -64,12 +82,10 @@ class NewView @JvmOverloads constructor(
             MeasureSpec.getSize(widthMeasureSpec)
         }
 
-        // Высота всех строк с тасками + строки с периодами
-        val contentHeight = minRowHight * (16) + namesRowHight
         val heightSpecSize = MeasureSpec.getSize(heightMeasureSpec)
         val height = when (MeasureSpec.getMode(heightMeasureSpec)) {
             // Нас никто не ограничивает - занимаем размер контента
-            MeasureSpec.UNSPECIFIED -> contentHeight
+            MeasureSpec.UNSPECIFIED -> heightSpecSize
             // Ограничение "не больше, не меньше" - занимаем столько, сколько пришло в спеке
             MeasureSpec.EXACTLY -> heightSpecSize
             // Можно занять меньше места, чем пришло в спеке, но не больше
@@ -87,21 +103,58 @@ class NewView @JvmOverloads constructor(
 
     }
 
+    val builder = StaticLayout.Builder.obtain(" text", 0, " text".length, dateNamePaint,
+        dateNamePaint.measureText(" text").toInt()
+    )
 
-    private fun Canvas.drawRows() {
-        repeat(COUNT_OF_DAYS + 1) { index ->
-            rowRect.offsetTo(0, index * minRowHight + namesRowHight)
+
+    private fun Canvas.drawRowsAndDates() {
+
+        val nameTimeY = dateNamePaint.getTextBaselineByCenter()
+        var text = ""
+        var lastY = namesRowHight
+        repeat(COUNT_OF_LESSONS) { index ->
+            lastY += minRowHight
+            rowRect.offsetTo(0, lastY)
             rowPaint.color = rowColors[index % 2]
             drawRect(rowRect, rowPaint)
+
+
+            text = timeStartOfLessonsList[index * 2]
+            var textWidth = dateNamePaint.measureText(text)
+            var textX = (dateTextSize - textWidth) / 2
+            var textY = (lastY - namesRowHight * 2 / 3 - nameTimeY)
+
+            drawText(text, textX, textY, dateNamePaint)
+
+            this.save()
+            this.translate(paddingLeft.toFloat(), paddingTop.toFloat())
+            builder.build().draw(this)
+            this.restore()
+
+            drawLine(0f, lastY.toFloat(), 1000f, lastY.toFloat(), mainSeparatorsPaint)
+
+
+
         }
+        // Линия для отделения времени
+        drawLine(dateTextSize, 0f, dateTextSize, height.toFloat(), mainSeparatorsPaint)
+
+        // Линия для отделения даты
+        drawLine(
+            0f,
+            namesRowHight.toFloat(),
+            width.toFloat(),
+            namesRowHight.toFloat(),
+            mainSeparatorsPaint
+        )
     }
 
 
-
     private fun Canvas.drawPeriods() {
-        val currentPeriods = listOf("__2 ","___3 ","_____5 ","___3 ","______6 ")
-        val nameY = periodNamePaint.getTextBaselineByCenter(minRowHight / 2f)
-        var lastX = 0f
+        val currentPeriods = listOf("__2 ", "___3 ", "_____5 ", "___3 ", "______6 ")
+        val nameY = periodNamePaint.getTextBaselineByCenter()
+        var lastX = dateTextSize
         currentPeriods.forEachIndexed { index, periodName ->
             // По X текст рисуется относительно его начала
             val textWidth = periodNamePaint.measureText(periodName)
@@ -114,65 +167,28 @@ class NewView @JvmOverloads constructor(
         }
     }
 
-    private fun Paint.getTextBaselineByCenter(center: Float) = center - (descent() + ascent()) / 2
+    private fun Paint.getTextBaselineByCenter() = (descent() + ascent()) / 2
 
     override fun onDraw(canvas: Canvas) = with(canvas) {
-        drawRows()
+        drawRowsAndDates()
         drawPeriods()
     }
 
 
     private var timeTable: List<CellClass> = emptyList()
-    private var uiTimeTable: List<CellClass> = emptyList()
 
     private val periodWidth = 100f
 
     fun setTimeTable(timeTable: List<CellClass>) {
         if (timeTable != this.timeTable) {
             this.timeTable = timeTable
-            //uiTimeTable = timeTable.map(::)
-            // Сообщаем, что нужно пересчитать размеры
             requestLayout()
-            // Сообщаем, что нужно перерисоваться
             invalidate()
         }
     }
 
 
-//    private inner class UiTask(val task: Task) {
-//        // Rect с учетом всех преобразований
-//        val rect = RectF()
-//
-//        // Начальный Rect для текущих размеров View
-//        private val untransformedRect = RectF()
-//
-//        // Если false, таск рисовать не нужно
-//        val isRectOnScreen: Boolean
-//            get() = rect.top < height && (rect.right > 0 || rect.left < width)
-//
-//        fun updateInitialRect(index: Int) {
-//            fun getX(date: LocalDate): Float? {
-//                val periodIndex =
-//                    periods.getValue(periodType).indexOf(periodType.getDateString(date))
-//                return if (periodIndex >= 0) {
-//                    periodWidth * (periodIndex + periodType.getPercentOfPeriod(date))
-//                } else {
-//                    null
-//                }
-//            }
-//
-//            untransformedRect.set(
-//                getX(task.dateStart) ?: -5f,
-//                40f * (index + 1f),
-//                getX(task.dateEnd) ?: width.toFloat(),
-//                40f * (index + 2f),
-//            )
-//            rect.set(untransformedRect)
-//        }
-//    }
-
     companion object {
-        const val COUNT_OF_DAYS = 16
-        private const val MAX_SCALE = 2f
+        const val COUNT_OF_LESSONS = 5
     }
 }

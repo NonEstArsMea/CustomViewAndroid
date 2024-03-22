@@ -9,18 +9,17 @@
     android:gravity="top"
     android:background="@color/white">
 
+
     <ScrollView
         android:layout_width="match_parent"
         android:layout_height="match_parent">
 
         <raa.example.customview.gantsView.NewView
+            android:id="@+id/gant"
             android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            android:id="@+id/gant"/>
+            android:layout_height="match_parent" />
 
     </ScrollView>
-
-
 
 
 </LinearLayout>
