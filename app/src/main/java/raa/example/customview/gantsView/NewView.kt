@@ -8,6 +8,7 @@ import android.graphics.Paint
 import android.graphics.Path
 import android.graphics.Rect
 import android.graphics.RectF
+import android.text.Layout
 import android.text.StaticLayout
 import android.text.TextPaint
 import android.util.AttributeSet
@@ -103,36 +104,52 @@ class NewView @JvmOverloads constructor(
 
     }
 
-    val builder = StaticLayout.Builder.obtain(" text", 0, " text".length, dateNamePaint,
-        dateNamePaint.measureText(" text").toInt()
-    )
-
 
     private fun Canvas.drawRowsAndDates() {
 
         val nameTimeY = dateNamePaint.getTextBaselineByCenter()
         var text = ""
         var lastY = namesRowHight
+
+        var y = 0f
+        val texts = listOf(
+            "Текст 123456789101121314151617181920212223242526",
+            "Текст 2",
+            "Текст 3",
+            "Текст 4",
+            "Текст 2",
+            "Текст 3",
+            "Текст 4"
+        )
+
         repeat(COUNT_OF_LESSONS) { index ->
-            lastY += minRowHight
+
+            val staticLayout = StaticLayout.Builder.obtain(
+                texts[index], 0, texts[index].length, dateNamePaint,
+                dateTextSize.toInt()
+            )
+                .setAlignment(Layout.Alignment.ALIGN_NORMAL)
+                .setLineSpacing(0f, 1.5f)
+                .setIncludePad(true)
+                .build()
+
+            this.save()
+            this.translate(0f, lastY.toFloat())
+            staticLayout.draw(this)
+            this.restore()
+
+            lastY += if(lastY > staticLayout.height) {
+                minRowHight
+            }else{
+                staticLayout.height
+            }
+
             rowRect.offsetTo(0, lastY)
             rowPaint.color = rowColors[index % 2]
             drawRect(rowRect, rowPaint)
 
-
-            text = timeStartOfLessonsList[index * 2]
-            var textWidth = dateNamePaint.measureText(text)
-            var textX = (dateTextSize - textWidth) / 2
-            var textY = (lastY - namesRowHight * 2 / 3 - nameTimeY)
-
-            drawText(text, textX, textY, dateNamePaint)
-
-            this.save()
-            this.translate(paddingLeft.toFloat(), paddingTop.toFloat())
-            builder.build().draw(this)
-            this.restore()
-
             drawLine(0f, lastY.toFloat(), 1000f, lastY.toFloat(), mainSeparatorsPaint)
+
 
 
 
