@@ -24,9 +24,10 @@ class NewView @JvmOverloads constructor(
     defStyleAttr: Int = 0
 ) : View(context, attrs, defStyleAttr) {
 
-
+    // Основная информация об строках и колонках
     private val minRowHight = 250
     private val namesRowHight = 170
+    private val columnWidth = 200f
 
     private val timeStartOfLessonsList = listOf(
         "9:00", "10:30",
@@ -104,56 +105,7 @@ class NewView @JvmOverloads constructor(
 
     }
 
-
-    private fun Canvas.drawRowsAndDates() {
-
-        val nameTimeY = dateNamePaint.getTextBaselineByCenter()
-        var text = ""
-        var lastY = namesRowHight
-
-        var y = 0f
-        val texts = listOf(
-            "Текст 123456789101121314151617181920212223242526",
-            "Текст 2",
-            "Текст 3",
-            "Текст 4",
-            "Текст 2",
-            "Текст 3",
-            "Текст 4"
-        )
-
-        repeat(COUNT_OF_LESSONS) { index ->
-
-            val staticLayout = StaticLayout.Builder.obtain(
-                texts[index], 0, texts[index].length, dateNamePaint,
-                dateTextSize.toInt()
-            )
-                .setAlignment(Layout.Alignment.ALIGN_NORMAL)
-                .setLineSpacing(0f, 1.5f)
-                .setIncludePad(true)
-                .build()
-
-            this.save()
-            this.translate(0f, lastY.toFloat())
-            staticLayout.draw(this)
-            this.restore()
-
-            lastY += if(lastY > staticLayout.height) {
-                minRowHight
-            }else{
-                staticLayout.height
-            }
-
-            rowRect.offsetTo(0, lastY)
-            rowPaint.color = rowColors[index % 2]
-            drawRect(rowRect, rowPaint)
-
-            drawLine(0f, lastY.toFloat(), 1000f, lastY.toFloat(), mainSeparatorsPaint)
-
-
-
-
-        }
+    private fun Canvas.drawTimeAndDateLine() {
         // Линия для отделения времени
         drawLine(dateTextSize, 0f, dateTextSize, height.toFloat(), mainSeparatorsPaint)
 
@@ -168,16 +120,89 @@ class NewView @JvmOverloads constructor(
     }
 
 
+    private fun Canvas.drawRowsAndDates() {
+
+
+        var lastY = namesRowHight
+
+        var rowHeight: Int
+        val paddingLeftAndRight = 5
+        var textY: Float
+
+        val texts = listOf(
+            "Текст \n12345678910112\n1314151617181920212223242526",
+            "Текст 2",
+            "Текст 3",
+            "Текст 4",
+            "Текст 2",
+            "Текст 3",
+            "Текст 4"
+        )
+
+        repeat(COUNT_OF_LESSONS) { index ->
+
+            val staticLayout = StaticLayout.Builder.obtain(
+                texts[index], 0, texts[index].length, dateNamePaint,
+                dateTextSize.toInt() - 2 * paddingLeftAndRight
+            )
+                .setAlignment(Layout.Alignment.ALIGN_CENTER)
+                .setLineSpacing(0f, 1f)
+                .setIncludePad(true)
+                .build()
+
+            rowHeight = if (lastY > staticLayout.height) {
+                minRowHight
+            } else {
+                staticLayout.height
+            }
+
+            textY = (lastY + (rowHeight - staticLayout.height) / 2).toFloat()
+
+            this.save()
+            this.translate(paddingLeftAndRight.toFloat(), textY)
+            staticLayout.draw(this)
+            this.restore()
+
+
+            lastY += rowHeight
+
+            rowRect.offsetTo(0, lastY)
+            rowPaint.color = rowColors[index % 2]
+            drawRect(rowRect, rowPaint)
+
+            drawLine(0f, lastY.toFloat(), 1000f, lastY.toFloat(), mainSeparatorsPaint)
+
+
+        }
+
+    }
+
+
     private fun Canvas.drawPeriods() {
-        val currentPeriods = listOf("__2 ", "___3 ", "_____5 ", "___3 ", "______6 ")
-        val nameY = periodNamePaint.getTextBaselineByCenter()
+        val currentPeriods = listOf("12 ", "123 ", "123\n456", "___3 ", "______6 ")
+        var nameY : Float
         var lastX = dateTextSize
         currentPeriods.forEachIndexed { index, periodName ->
             // По X текст рисуется относительно его начала
-            val textWidth = periodNamePaint.measureText(periodName)
-            val nameX = lastX
-            drawText(periodName, nameX, nameY, periodNamePaint)
-            lastX += textWidth
+            val staticLayout = StaticLayout.Builder.obtain(
+                periodName, 0, periodName.length, dateNamePaint,
+                columnWidth.toInt()
+            )
+                .setAlignment(Layout.Alignment.ALIGN_CENTER)
+                .setLineSpacing(0f, 1f)
+                .setIncludePad(true)
+                .build()
+
+            nameY = ((namesRowHight - staticLayout.height) / 2).toFloat()
+
+            this.save()
+            this.translate(lastX, nameY.toFloat())
+            staticLayout.draw(this)
+            this.restore()
+
+            lastX += columnWidth
+
+
             // Разделитель
             val separatorX = lastX
             drawLine(separatorX, 0f, separatorX, height.toFloat(), separatorsPaint)
@@ -189,12 +214,12 @@ class NewView @JvmOverloads constructor(
     override fun onDraw(canvas: Canvas) = with(canvas) {
         drawRowsAndDates()
         drawPeriods()
+        drawTimeAndDateLine()
     }
 
 
     private var timeTable: List<CellClass> = emptyList()
 
-    private val periodWidth = 100f
 
     fun setTimeTable(timeTable: List<CellClass>) {
         if (timeTable != this.timeTable) {
@@ -206,6 +231,12 @@ class NewView @JvmOverloads constructor(
 
 
     companion object {
-        const val COUNT_OF_LESSONS = 5
+        const val COUNT_OF_LESSONS = 6
+    }
+
+    private class Transformations{
+
+
+
     }
 }
