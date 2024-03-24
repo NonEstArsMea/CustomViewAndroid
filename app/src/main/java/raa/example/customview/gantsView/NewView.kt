@@ -3,20 +3,18 @@ package raa.example.customview.gantsView
 import android.content.Context
 import android.graphics.Canvas
 import android.graphics.Color
-import android.graphics.Matrix
 import android.graphics.Paint
-import android.graphics.Path
+import android.graphics.PointF
 import android.graphics.Rect
-import android.graphics.RectF
 import android.text.Layout
 import android.text.StaticLayout
 import android.text.TextPaint
 import android.util.AttributeSet
+import android.view.MotionEvent
 import android.view.View
 import androidx.core.content.ContextCompat
 import raa.example.customview.CellClass
 import raa.example.customview.R
-import java.time.LocalDate
 
 class NewView @JvmOverloads constructor(
     context: Context,
@@ -27,7 +25,21 @@ class NewView @JvmOverloads constructor(
     // Основная информация об строках и колонках
     private val minRowHight = 250
     private val namesRowHight = 170
-    private val columnWidth = 200f
+    private val columnWidth = 400f
+
+
+    private val contentWidth: Int
+        get() = width + 500
+    private val contentHeight: Int
+        get() = height + 500
+
+
+    // Отвечает за зум и сдвиги
+    private val transformations = Transformations()
+
+    // Значения последнего эвента
+    private val lastPoint = PointF()
+    private var lastPointerId = 0
 
     private val timeStartOfLessonsList = listOf(
         "9:00", "10:30",
@@ -107,14 +119,20 @@ class NewView @JvmOverloads constructor(
 
     private fun Canvas.drawTimeAndDateLine() {
         // Линия для отделения времени
-        drawLine(dateTextSize, 0f, dateTextSize, height.toFloat(), mainSeparatorsPaint)
+        drawLine(
+            dateTextSize + transformations.translationX,
+            0f,
+            dateTextSize + transformations.translationX,
+            height.toFloat(),
+            mainSeparatorsPaint
+        )
 
         // Линия для отделения даты
         drawLine(
             0f,
-            namesRowHight.toFloat(),
+            namesRowHight.toFloat() + transformations.translationY,
             width.toFloat(),
-            namesRowHight.toFloat(),
+            namesRowHight.toFloat() + transformations.translationY,
             mainSeparatorsPaint
         )
     }
@@ -123,11 +141,13 @@ class NewView @JvmOverloads constructor(
     private fun Canvas.drawRowsAndDates() {
 
 
-        var lastY = namesRowHight
+        var lastY = namesRowHight.toFloat()
+        val lastX = transformations.translationX
 
         var rowHeight: Int
         val paddingLeftAndRight = 5
         var textY: Float
+        var textX: Float
 
         val texts = listOf(
             "Текст \n12345678910112\n1314151617181920212223242526",
@@ -142,8 +162,11 @@ class NewView @JvmOverloads constructor(
         repeat(COUNT_OF_LESSONS) { index ->
 
             val staticLayout = StaticLayout.Builder.obtain(
-                texts[index], 0, texts[index].length, dateNamePaint,
-                dateTextSize.toInt() - 2 * paddingLeftAndRight
+                /* source = */ texts[index],
+                /* start = */  0,
+                /* end = */    texts[index].length,
+                /* paint = */  dateNamePaint,
+                /* width = */  dateTextSize.toInt() - 2 * paddingLeftAndRight
             )
                 .setAlignment(Layout.Alignment.ALIGN_CENTER)
                 .setLineSpacing(0f, 1f)
@@ -156,21 +179,21 @@ class NewView @JvmOverloads constructor(
                 staticLayout.height
             }
 
-            textY = (lastY + (rowHeight - staticLayout.height) / 2).toFloat()
+            textY = (lastY + (rowHeight - staticLayout.height) / 2) + transformations.translationY
+            textX = paddingLeftAndRight.toFloat() + lastX
 
             this.save()
-            this.translate(paddingLeftAndRight.toFloat(), textY)
+            this.translate(textX, textY)
             staticLayout.draw(this)
             this.restore()
 
 
             lastY += rowHeight
 
-            rowRect.offsetTo(0, lastY)
+            rowRect.offsetTo(0, lastY.toInt() + transformations.translationY.toInt())
             rowPaint.color = rowColors[index % 2]
             drawRect(rowRect, rowPaint)
 
-            drawLine(0f, lastY.toFloat(), 1000f, lastY.toFloat(), mainSeparatorsPaint)
 
 
         }
@@ -180,8 +203,12 @@ class NewView @JvmOverloads constructor(
 
     private fun Canvas.drawPeriods() {
         val currentPeriods = listOf("12 ", "123 ", "123\n456", "___3 ", "______6 ")
-        var nameY : Float
-        var lastX = dateTextSize
+        var nameY: Float
+        var nameX: Float
+
+        var lastX = dateTextSize + transformations.translationX
+        var lastY = transformations.translationY
+
         currentPeriods.forEachIndexed { index, periodName ->
             // По X текст рисуется относительно его начала
             val staticLayout = StaticLayout.Builder.obtain(
@@ -193,10 +220,11 @@ class NewView @JvmOverloads constructor(
                 .setIncludePad(true)
                 .build()
 
-            nameY = ((namesRowHight - staticLayout.height) / 2).toFloat()
+            nameY = ((namesRowHight - staticLayout.height) / 2).toFloat() + transformations.translationY
+            nameX = lastX
 
             this.save()
-            this.translate(lastX, nameY.toFloat())
+            this.translate(nameX, nameY.toFloat())
             staticLayout.draw(this)
             this.restore()
 
@@ -204,8 +232,7 @@ class NewView @JvmOverloads constructor(
 
 
             // Разделитель
-            val separatorX = lastX
-            drawLine(separatorX, 0f, separatorX, height.toFloat(), separatorsPaint)
+            drawLine(lastX, 0f, lastX, height.toFloat(), separatorsPaint)
         }
     }
 
@@ -230,12 +257,60 @@ class NewView @JvmOverloads constructor(
     }
 
 
+    override fun onTouchEvent(event: MotionEvent): Boolean {
+        return when (event.action) {
+            MotionEvent.ACTION_DOWN -> {
+                lastPoint.set(event.x, event.y)
+                lastPointerId = event.getPointerId(0)
+                true
+            }
+
+            MotionEvent.ACTION_MOVE -> {
+
+                // Если размер контента меньше размера View - сдвиг недоступен
+                if (width < contentWidth) {
+                    val pointerId = event.getPointerId(0)
+                    // Чтобы избежать скачков - сдвигаем, только если поинтер(палец) тот же, что и раньше
+                    if (lastPointerId == pointerId) {
+                        transformations.addTranslation(event.x - lastPoint.x, event.y - lastPoint.y)
+                    }
+
+                    // Запоминаем поинтер и последнюю точку в любом случае
+                    lastPoint.set(event.x, event.y)
+                    lastPointerId = event.getPointerId(0)
+
+                    true
+                } else {
+                    false
+                }
+            }
+
+            else -> false
+        }
+    }
+
+
     companion object {
         const val COUNT_OF_LESSONS = 6
     }
 
-    private class Transformations{
+    private inner class Transformations {
+        var translationX = 0f
+            private set
+        var translationY = 0f
+            private set
 
+        // На сколько максимально можно сдвинуть диаграмму
+        private val minTranslationX: Float
+            get() = (width - contentWidth).coerceAtMost(0).toFloat()
+        private val minTranslationY: Float
+            get() = (height - contentHeight).coerceAtMost(0).toFloat()
+
+        fun addTranslation(dx: Float, dy: Float) {
+            translationX = (translationX + dx).coerceIn(minTranslationX, 0f)
+            translationY = (translationY + dy).coerceIn(minTranslationY, 0f)
+            invalidate()
+        }
 
 
     }
