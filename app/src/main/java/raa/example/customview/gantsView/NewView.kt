@@ -1,5 +1,6 @@
 package raa.example.customview.gantsView
 
+import android.annotation.SuppressLint
 import android.content.Context
 import android.graphics.Canvas
 import android.graphics.Color
@@ -10,7 +11,9 @@ import android.text.Layout
 import android.text.StaticLayout
 import android.text.TextPaint
 import android.util.AttributeSet
+import android.util.Log
 import android.view.MotionEvent
+import android.view.ScaleGestureDetector
 import android.view.View
 import androidx.core.content.ContextCompat
 import raa.example.customview.CellClass
@@ -43,10 +46,10 @@ class NewView @JvmOverloads constructor(
 
     private val timeStartOfLessonsList = listOf(
         "9:00", "10:30",
+        "10:45", "12:15",
+        "12:30", "14:00",
         "9:00", "10:30",
-        "9:00", "10:30",
-        "9:00", "10:30",
-        "9:00", "10:30",
+        "16:25", "17:55",
     )
 
     private val dateTextSize = 200f
@@ -184,6 +187,7 @@ class NewView @JvmOverloads constructor(
 
             this.save()
             this.translate(textX, textY)
+            this.scale(transformations.scaleFactor, transformations.scaleFactor)
             staticLayout.draw(this)
             this.restore()
 
@@ -193,7 +197,6 @@ class NewView @JvmOverloads constructor(
             rowRect.offsetTo(0, lastY.toInt() + transformations.translationY.toInt())
             rowPaint.color = rowColors[index % 2]
             drawRect(rowRect, rowPaint)
-
 
 
         }
@@ -220,7 +223,8 @@ class NewView @JvmOverloads constructor(
                 .setIncludePad(true)
                 .build()
 
-            nameY = ((namesRowHight - staticLayout.height) / 2).toFloat() + transformations.translationY
+            nameY =
+                ((namesRowHight - staticLayout.height) / 2).toFloat() + transformations.translationY
             nameX = lastX
 
             this.save()
@@ -257,7 +261,26 @@ class NewView @JvmOverloads constructor(
     }
 
 
-    override fun onTouchEvent(event: MotionEvent): Boolean {
+    @SuppressLint("ClickableViewAccessibility")
+    override fun onTouchEvent(event: MotionEvent?): Boolean {
+        event ?: return false
+        return if (event.pointerCount > 1) scaleDetector.onTouchEvent(event) else processMove(event)
+    }
+
+    private val scaleDetector = ScaleGestureDetector(
+            context,
+            object : ScaleGestureDetector.SimpleOnScaleGestureListener() {
+                override fun onScale(detector: ScaleGestureDetector): Boolean {
+                    return run {
+                        Log.e("tag2", detector.scaleFactor.toString())
+                        transformations.addScale(detector.scaleFactor)
+                        true
+                    }
+                }
+            })
+
+
+    private fun processMove(event: MotionEvent): Boolean {
         return when (event.action) {
             MotionEvent.ACTION_DOWN -> {
                 lastPoint.set(event.x, event.y)
@@ -295,6 +318,11 @@ class NewView @JvmOverloads constructor(
     }
 
     private inner class Transformations {
+
+        var scaleFactor = 1.0f
+        private val minScaleFactor = 0.8f
+        private val maxScaleFactor = 2.0f
+
         var translationX = 0f
             private set
         var translationY = 0f
@@ -309,6 +337,12 @@ class NewView @JvmOverloads constructor(
         fun addTranslation(dx: Float, dy: Float) {
             translationX = (translationX + dx).coerceIn(minTranslationX, 0f)
             translationY = (translationY + dy).coerceIn(minTranslationY, 0f)
+            invalidate()
+        }
+
+        fun addScale(sx: Float) {
+            Log.e("tag", sx.toString())
+            scaleFactor = (scaleFactor * sx).coerceIn(minScaleFactor, maxScaleFactor)
             invalidate()
         }
 
