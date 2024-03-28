@@ -48,7 +48,7 @@ class NewView @JvmOverloads constructor(
         "9:00", "10:30",
         "10:45", "12:15",
         "12:30", "14:00",
-        "9:00", "10:30",
+        "14:15", "16:15",
         "16:25", "17:55",
     )
 
@@ -164,6 +164,10 @@ class NewView @JvmOverloads constructor(
 
         repeat(COUNT_OF_LESSONS) { index ->
 
+            rowRect.offsetTo(0, ((lastY + transformations.translationY)*transformations.scaleFactor).toInt())
+            rowPaint.color = rowColors[index % 2]
+            drawRect(rowRect, rowPaint)
+
             val staticLayout = StaticLayout.Builder.obtain(
                 /* source = */ texts[index],
                 /* start = */  0,
@@ -176,13 +180,15 @@ class NewView @JvmOverloads constructor(
                 .setIncludePad(true)
                 .build()
 
-            rowHeight = if (lastY > staticLayout.height) {
+            rowHeight = if (minRowHight > staticLayout.height) {
                 minRowHight
             } else {
                 staticLayout.height
             }
 
-            textY = (lastY + (rowHeight - staticLayout.height) / 2) + transformations.translationY
+            //rowHeight = (rowHeight.toFloat() * transformations.scaleFactor).toInt()
+
+            textY = ((lastY + (rowHeight - staticLayout.height) / 2) + transformations.translationY)* transformations.scaleFactor
             textX = paddingLeftAndRight.toFloat() + lastX
 
             this.save()
@@ -194,9 +200,6 @@ class NewView @JvmOverloads constructor(
 
             lastY += rowHeight
 
-            rowRect.offsetTo(0, lastY.toInt() + transformations.translationY.toInt())
-            rowPaint.color = rowColors[index % 2]
-            drawRect(rowRect, rowPaint)
 
 
         }
@@ -268,16 +271,16 @@ class NewView @JvmOverloads constructor(
     }
 
     private val scaleDetector = ScaleGestureDetector(
-            context,
-            object : ScaleGestureDetector.SimpleOnScaleGestureListener() {
-                override fun onScale(detector: ScaleGestureDetector): Boolean {
-                    return run {
-                        Log.e("tag2", detector.scaleFactor.toString())
-                        transformations.addScale(detector.scaleFactor)
-                        true
-                    }
+        context,
+        object : ScaleGestureDetector.SimpleOnScaleGestureListener() {
+            override fun onScale(detector: ScaleGestureDetector): Boolean {
+                return run {
+                    Log.e("tag2", detector.scaleFactor.toString())
+                    transformations.addScale(detector.scaleFactor)
+                    true
                 }
-            })
+            }
+        })
 
 
     private fun processMove(event: MotionEvent): Boolean {
