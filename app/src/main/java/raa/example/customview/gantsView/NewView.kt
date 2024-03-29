@@ -11,7 +11,6 @@ import android.text.Layout
 import android.text.StaticLayout
 import android.text.TextPaint
 import android.util.AttributeSet
-import android.util.Log
 import android.view.MotionEvent
 import android.view.ScaleGestureDetector
 import android.view.View
@@ -52,7 +51,7 @@ class NewView @JvmOverloads constructor(
         "16:25", "17:55",
     )
 
-    private val dateTextSize = 200f
+    private var dateTextSize = 200f
 
 
     private val rowPaint = Paint().apply {
@@ -88,7 +87,7 @@ class NewView @JvmOverloads constructor(
     // Чередующиеся цвета строк
     private val rowColors = listOf(
         ContextCompat.getColor(context, R.color.red_themes_500),
-        Color.WHITE
+        Color.GREEN
     )
 
     override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
@@ -116,16 +115,21 @@ class NewView @JvmOverloads constructor(
 
     override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) {
         // Размер изменился, надо пересчитать ширину строки
-        rowRect.set(0, 0, w, minRowHight)
+        rowRect.set(
+            /* left = */ 0,
+            /* top = */0,
+            /* right = */w,
+            /* bottom = */ minRowHight
+        )
 
     }
 
     private fun Canvas.drawTimeAndDateLine() {
         // Линия для отделения времени
         drawLine(
-            dateTextSize + transformations.translationX,
+            dateTextSize * transformations.scaleFactor + transformations.translationX,
             0f,
-            dateTextSize + transformations.translationX,
+            dateTextSize * transformations.scaleFactor + transformations.translationX,
             height.toFloat(),
             mainSeparatorsPaint
         )
@@ -133,9 +137,9 @@ class NewView @JvmOverloads constructor(
         // Линия для отделения даты
         drawLine(
             0f,
-            namesRowHight.toFloat() + transformations.translationY,
+            namesRowHight * transformations.scaleFactor + transformations.translationY,
             width.toFloat(),
-            namesRowHight.toFloat() + transformations.translationY,
+            namesRowHight * transformations.scaleFactor + transformations.translationY,
             mainSeparatorsPaint
         )
     }
@@ -144,7 +148,7 @@ class NewView @JvmOverloads constructor(
     private fun Canvas.drawRowsAndDates() {
 
 
-        var lastY = namesRowHight.toFloat()
+        var lastY = namesRowHight.toFloat() * transformations.scaleFactor
         val lastX = transformations.translationX
 
         var rowHeight: Int
@@ -164,9 +168,6 @@ class NewView @JvmOverloads constructor(
 
         repeat(COUNT_OF_LESSONS) { index ->
 
-            rowRect.offsetTo(0, ((lastY + transformations.translationY)*transformations.scaleFactor).toInt())
-            rowPaint.color = rowColors[index % 2]
-            drawRect(rowRect, rowPaint)
 
             val staticLayout = StaticLayout.Builder.obtain(
                 /* source = */ texts[index],
@@ -186,9 +187,23 @@ class NewView @JvmOverloads constructor(
                 staticLayout.height
             }
 
-            //rowHeight = (rowHeight.toFloat() * transformations.scaleFactor).toInt()
 
-            textY = ((lastY + (rowHeight - staticLayout.height) / 2) + transformations.translationY)* transformations.scaleFactor
+            rowRect.set(
+                /* left = */ 0,
+                /* top = */
+                (lastY + transformations.translationY).toInt(),
+                /* right = */
+                width,
+                /* bottom = */
+                (lastY + (rowHeight * transformations.scaleFactor) + transformations.translationY).toInt()
+            )
+
+            rowPaint.color = rowColors[index % 2]
+            drawRect(rowRect, rowPaint)
+
+
+            textY =
+                (lastY + (rowHeight - staticLayout.height) * transformations.scaleFactor / 2) + transformations.translationY
             textX = paddingLeftAndRight.toFloat() + lastX
 
             this.save()
@@ -197,10 +212,7 @@ class NewView @JvmOverloads constructor(
             staticLayout.draw(this)
             this.restore()
 
-
-            lastY += rowHeight
-
-
+            lastY += (rowHeight * transformations.scaleFactor)
 
         }
 
@@ -209,33 +221,35 @@ class NewView @JvmOverloads constructor(
 
     private fun Canvas.drawPeriods() {
         val currentPeriods = listOf("12 ", "123 ", "123\n456", "___3 ", "______6 ")
-        var nameY: Float
-        var nameX: Float
+        var textY: Float
+        var textX: Float
 
-        var lastX = dateTextSize + transformations.translationX
-        var lastY = transformations.translationY
+        var lastX = dateTextSize * transformations.scaleFactor + transformations.translationX
+
+        val layoutColumnWidth = columnWidth * transformations.scaleFactor
 
         currentPeriods.forEachIndexed { index, periodName ->
             // По X текст рисуется относительно его начала
             val staticLayout = StaticLayout.Builder.obtain(
                 periodName, 0, periodName.length, dateNamePaint,
-                columnWidth.toInt()
+                layoutColumnWidth.toInt()
             )
                 .setAlignment(Layout.Alignment.ALIGN_CENTER)
                 .setLineSpacing(0f, 1f)
                 .setIncludePad(true)
                 .build()
 
-            nameY =
-                ((namesRowHight - staticLayout.height) / 2).toFloat() + transformations.translationY
-            nameX = lastX
+            textY =
+                ((namesRowHight - staticLayout.height) / 2 * transformations.scaleFactor) + transformations.translationY
+            textX = lastX + (columnWidth - staticLayout.width) / 2 * transformations.scaleFactor
 
             this.save()
-            this.translate(nameX, nameY.toFloat())
+            this.translate(textX, textY)
+            this.scale(transformations.scaleFactor, transformations.scaleFactor)
             staticLayout.draw(this)
             this.restore()
 
-            lastX += columnWidth
+            lastX += (columnWidth * transformations.scaleFactor)
 
 
             // Разделитель
@@ -275,7 +289,6 @@ class NewView @JvmOverloads constructor(
         object : ScaleGestureDetector.SimpleOnScaleGestureListener() {
             override fun onScale(detector: ScaleGestureDetector): Boolean {
                 return run {
-                    Log.e("tag2", detector.scaleFactor.toString())
                     transformations.addScale(detector.scaleFactor)
                     true
                 }
@@ -323,7 +336,7 @@ class NewView @JvmOverloads constructor(
     private inner class Transformations {
 
         var scaleFactor = 1.0f
-        private val minScaleFactor = 0.8f
+        private val minScaleFactor = 0.5f
         private val maxScaleFactor = 2.0f
 
         var translationX = 0f
@@ -344,7 +357,6 @@ class NewView @JvmOverloads constructor(
         }
 
         fun addScale(sx: Float) {
-            Log.e("tag", sx.toString())
             scaleFactor = (scaleFactor * sx).coerceIn(minScaleFactor, maxScaleFactor)
             invalidate()
         }
