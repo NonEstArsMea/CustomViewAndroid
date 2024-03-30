@@ -5,8 +5,10 @@ import android.content.Context
 import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.Paint
+import android.graphics.Path
 import android.graphics.PointF
 import android.graphics.Rect
+import android.graphics.RectF
 import android.text.Layout
 import android.text.StaticLayout
 import android.text.TextPaint
@@ -17,6 +19,8 @@ import android.view.View
 import androidx.core.content.ContextCompat
 import raa.example.customview.CellClass
 import raa.example.customview.R
+import java.time.LocalDate
+import kotlin.time.times
 
 class NewView @JvmOverloads constructor(
     context: Context,
@@ -38,6 +42,12 @@ class NewView @JvmOverloads constructor(
 
     // Отвечает за зум и сдвиги
     private val transformations = Transformations()
+
+    // Радиус скругления углов таски
+    private val taskCornerRadius = resources.getDimension(R.dimen.gant_task_corner_radius)
+
+    // Вертикальный отступ таски внутри строки
+    private val taskVerticalMargin = resources.getDimension(R.dimen.gant_task_vertical_margin)
 
     // Значения последнего эвента
     private val lastPoint = PointF()
@@ -160,7 +170,9 @@ class NewView @JvmOverloads constructor(
             "Текст \n12345678910112\n1314151617181920212223242526",
             "Текст 2",
             "Текст 3",
-            "Текст 4",
+            "Текст \n" +
+                    "12345678910112\n" +
+                    "1314151617181920212223242526",
             "Текст 2",
             "Текст 3",
             "Текст 4"
@@ -361,6 +373,47 @@ class NewView @JvmOverloads constructor(
             invalidate()
         }
 
+
+    }
+
+    private inner class LessonsRect(val lesson: String = "noLesson",
+                                    val dayOfLesson: Int,
+                                    val lastY: Int,
+                                    val hightOfRow: Int) {
+
+        var rect = RectF()
+
+        // Path для фигуры таски
+        val path = Path()
+
+        // Path для вырезаемого круга
+        val rectOutPath = Path()
+
+        // Начальный Rect для текущих размеров View
+        private val untransformedRect = RectF()
+
+        // Если false, таск рисовать не нужно
+        val isRectOnScreen: Boolean
+            get() = (rect.top > height) and (rect.bottom < 0) and (rect.right < width) and (rect.left > 0)
+
+        fun updateInitialRect(index: Int) {
+
+            fun getX(index: Int): Float {
+                return (index * columnWidth)
+            }
+
+            fun getEndX(index: Int): Float {
+                return ((index + 1) * columnWidth)
+            }
+
+            untransformedRect.set(
+                getX(dayOfLesson),
+                lastY.toFloat(),
+                getEndX(dayOfLesson),
+                (lastY + hightOfRow).toFloat(),
+            )
+            rect.set(untransformedRect)
+        }
 
     }
 }
