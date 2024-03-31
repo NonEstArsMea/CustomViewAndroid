@@ -49,6 +49,11 @@ class NewView @JvmOverloads constructor(
     // Вертикальный отступ таски внутри строки
     private val taskVerticalMargin = resources.getDimension(R.dimen.gant_task_vertical_margin)
 
+    // Для фигур тасок
+    private val taskShapePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        style = Paint.Style.FILL
+    color = Color.GRAY}
+
     // Значения последнего эвента
     private val lastPoint = PointF()
     private var lastPointerId = 0
@@ -202,17 +207,18 @@ class NewView @JvmOverloads constructor(
 
             rowRect.set(
                 /* left = */ 0,
-                /* top = */
-                (lastY + transformations.translationY).toInt(),
-                /* right = */
-                width,
-                /* bottom = */
-                (lastY + (rowHeight * transformations.scaleFactor) + transformations.translationY).toInt()
+                /* top = */(lastY + transformations.translationY).toInt(),
+                /* right = */width,
+                /* bottom = */(lastY + (rowHeight * transformations.scaleFactor) + transformations.translationY).toInt()
             )
 
             rowPaint.color = rowColors[index % 2]
             drawRect(rowRect, rowPaint)
 
+            val lesson = LessonsRect("noLesson",2, lastY.toInt(),rowHeight)
+            lesson.updateInitialRect()
+
+            drawRect(lesson.rect, taskShapePaint)
 
             textY =
                 (lastY + (rowHeight - staticLayout.height) * transformations.scaleFactor / 2) + transformations.translationY
@@ -396,7 +402,7 @@ class NewView @JvmOverloads constructor(
         val isRectOnScreen: Boolean
             get() = (rect.top > height) and (rect.bottom < 0) and (rect.right < width) and (rect.left > 0)
 
-        fun updateInitialRect(index: Int) {
+        fun updateInitialRect() {
 
             fun getX(index: Int): Float {
                 return (index * columnWidth)
