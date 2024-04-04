@@ -19,6 +19,7 @@ import android.view.View
 import androidx.core.content.ContextCompat
 import raa.example.customview.CellClass
 import raa.example.customview.R
+import java.lang.Integer.max
 import java.time.LocalDate
 import kotlin.time.times
 
@@ -33,9 +34,10 @@ class NewView @JvmOverloads constructor(
     private val namesRowHight = 170
     private val columnWidth = 400f
 
+    private var dateTextSize = 200f
 
     private val contentWidth: Int
-        get() = width + 500
+        get() = max(width, (columnWidth * 6 + dateTextSize).toInt())
     private val contentHeight: Int
         get() = height + 500
 
@@ -52,7 +54,8 @@ class NewView @JvmOverloads constructor(
     // Для фигур тасок
     private val taskShapePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         style = Paint.Style.FILL
-    color = Color.GRAY}
+        color = Color.GRAY
+    }
 
     // Значения последнего эвента
     private val lastPoint = PointF()
@@ -65,8 +68,6 @@ class NewView @JvmOverloads constructor(
         "14:15", "16:15",
         "16:25", "17:55",
     )
-
-    private var dateTextSize = 200f
 
 
     private val rowPaint = Paint().apply {
@@ -102,7 +103,7 @@ class NewView @JvmOverloads constructor(
     // Чередующиеся цвета строк
     private val rowColors = listOf(
         ContextCompat.getColor(context, R.color.red_themes_500),
-        Color.GREEN
+        Color.WHITE
     )
 
     override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
@@ -207,18 +208,23 @@ class NewView @JvmOverloads constructor(
 
             rowRect.set(
                 /* left = */ 0,
-                /* top = */(lastY + transformations.translationY).toInt(),
-                /* right = */width,
-                /* bottom = */(lastY + (rowHeight * transformations.scaleFactor) + transformations.translationY).toInt()
+                /* top = */
+                (lastY + transformations.translationY).toInt(),
+                /* right = */
+                width,
+                /* bottom = */
+                (lastY + (rowHeight * transformations.scaleFactor) + transformations.translationY).toInt()
             )
 
             rowPaint.color = rowColors[index % 2]
             drawRect(rowRect, rowPaint)
 
-            val lesson = LessonsRect("noLesson",2, lastY.toInt(),rowHeight)
-            lesson.updateInitialRect()
+            val lesson = LessonsRect("noLesson", 2, lastY.toInt(), rowHeight)
+            if (!lesson.isRectVisible) {
+                lesson.updateInitialRect()
+                lesson.draw(this)
+            }
 
-            drawRect(lesson.rect, taskShapePaint)
 
             textY =
                 (lastY + (rowHeight - staticLayout.height) * transformations.scaleFactor / 2) + transformations.translationY
@@ -382,43 +388,88 @@ class NewView @JvmOverloads constructor(
 
     }
 
-    private inner class LessonsRect(val lesson: String = "noLesson",
-                                    val dayOfLesson: Int,
-                                    val lastY: Int,
-                                    val hightOfRow: Int) {
+    private inner class LessonsRect(
+        val lesson: String,
+        val dayOfLesson: Int,
+        val lastY: Int,
+        val hightOfRow: Int
+    ) {
 
         var rect = RectF()
+        private val paint = Paint().apply {
+            style = Paint.Style.FILL
+            color = Color.BLACK
+            strokeWidth = 1f
+            setBackgroundColor(Color.WHITE)
+        }
 
-        // Path для фигуры таски
-        val path = Path()
-
-        // Path для вырезаемого круга
-        val rectOutPath = Path()
+        private val strokePaint = Paint().apply {
+            style = Paint.Style.STROKE
+            strokeWidth = strokeWidth
+            color = Color.BLACK
+        }
+        private val strokeWidth = 1f
+        private val path = Path()
+        private val path2 = Path()
 
         // Начальный Rect для текущих размеров View
         private val untransformedRect = RectF()
 
         // Если false, таск рисовать не нужно
-        val isRectOnScreen: Boolean
+        val isRectVisible: Boolean
             get() = (rect.top > height) and (rect.bottom < 0) and (rect.right < width) and (rect.left > 0)
 
         fun updateInitialRect() {
 
             fun getX(index: Int): Float {
-                return (index * columnWidth)
+                return (index * columnWidth) + dateTextSize
             }
 
             fun getEndX(index: Int): Float {
-                return ((index + 1) * columnWidth)
+                return ((index + 1) * columnWidth) + dateTextSize
             }
 
             untransformedRect.set(
-                getX(dayOfLesson),
-                lastY.toFloat(),
-                getEndX(dayOfLesson),
-                (lastY + hightOfRow).toFloat(),
+                getX(dayOfLesson) * transformations.scaleFactor + transformations.translationX + 5f,
+                lastY.toFloat() + transformations.translationY + 5f,
+                getEndX(dayOfLesson) * transformations.scaleFactor + transformations.translationX - 5f,
+                (lastY + hightOfRow * transformations.scaleFactor).toFloat() + transformations.translationY - 5f,
             )
             rect.set(untransformedRect)
+        }
+
+        fun draw(canvas: Canvas) {
+            // Draw rounded rectangle
+
+            paint.color = Color.WHITE
+            val strokeRect = RectF(
+                rect.left - strokeWidth,
+                rect.top - strokeWidth,
+                rect.right + strokeWidth,
+                rect.bottom + strokeWidth
+            )
+
+            path.addRoundRect(rect, 20f, 20f, Path.Direction.CW)
+            canvas.drawPath(path, paint)
+            paint.color = resources.getColor(R.color.blue_200)
+
+
+            // Draw left strip
+            rect.set(rect.left, rect.top, rect.left + 50f, rect.bottom)
+            path2.addRoundRect(rect, 20f, 20f, Path.Direction.CW)
+            path.addRect(
+                RectF(
+                    rect.left - 10f,
+                    rect.top,
+                    rect.right,
+                    rect.bottom
+                ), Path.Direction.CW
+            )
+            path2.op(
+                path, Path.Op.INTERSECT
+            )
+            canvas.drawPath(path2, paint)
+            canvas.drawRoundRect(strokeRect, 20f, 20f, strokePaint)
         }
 
     }
