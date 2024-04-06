@@ -396,6 +396,11 @@ class NewView @JvmOverloads constructor(
     ) {
 
         var rect = RectF()
+
+        var rectRadius = 20f * transformations.scaleFactor
+        private var verticalLineSize = 15f * transformations.scaleFactor
+
+
         private val paint = Paint().apply {
             style = Paint.Style.FILL
             color = Color.BLACK
@@ -448,28 +453,38 @@ class NewView @JvmOverloads constructor(
                 rect.right + strokeWidth,
                 rect.bottom + strokeWidth
             )
-
-            path.addRoundRect(rect, 20f, 20f, Path.Direction.CW)
+            // Отрисовка самого прямоугольника
+            path.addRoundRect(rect, rectRadius, rectRadius, Path.Direction.CW)
             canvas.drawPath(path, paint)
+
             paint.color = resources.getColor(R.color.blue_200)
-
-
-            // Draw left strip
-            rect.set(rect.left, rect.top, rect.left + 50f, rect.bottom)
-            path2.addRoundRect(rect, 20f, 20f, Path.Direction.CW)
-            path.addRect(
-                RectF(
-                    rect.left - 10f,
+            // Отрисовка боковой части
+            with(path) {
+                reset()
+                addRoundRect(
+                    rect.left,
                     rect.top,
-                    rect.right,
-                    rect.bottom
-                ), Path.Direction.CW
-            )
-            path2.op(
-                path, Path.Op.INTERSECT
-            )
+                    rect.left + 100f,
+                    rect.bottom,
+                    rectRadius,
+                    rectRadius,
+                    Path.Direction.CW
+                )
+            }
+
+            with(path2) {
+                reset()
+                addRect(
+                    rect.left + verticalLineSize,
+                        rect.top,
+                        rect.right,
+                        rect.bottom, Path.Direction.CW
+                )
+                op(path, Path.Op.REVERSE_DIFFERENCE)
+            }
+
             canvas.drawPath(path2, paint)
-            canvas.drawRoundRect(strokeRect, 20f, 20f, strokePaint)
+            canvas.drawRoundRect(strokeRect, rectRadius, verticalLineSize, strokePaint)
         }
 
     }
