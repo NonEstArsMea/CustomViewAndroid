@@ -13,6 +13,7 @@ import android.text.Layout
 import android.text.StaticLayout
 import android.text.TextPaint
 import android.util.AttributeSet
+import android.util.Log
 import android.view.MotionEvent
 import android.view.ScaleGestureDetector
 import android.view.View
@@ -370,18 +371,22 @@ class NewView @JvmOverloads constructor(
 
         // На сколько максимально можно сдвинуть диаграмму
         private val minTranslationX: Float
-            get() = (width - contentWidth).coerceAtMost(0).toFloat()
+            get() = (width - contentWidth * scaleFactor).coerceAtMost(0f).toFloat()
         private val minTranslationY: Float
-            get() = (height - contentHeight).coerceAtMost(0).toFloat()
+            get() = (height - contentHeight * scaleFactor).coerceAtMost(0f).toFloat()
 
         fun addTranslation(dx: Float, dy: Float) {
             translationX = (translationX + dx).coerceIn(minTranslationX, 0f)
             translationY = (translationY + dy).coerceIn(minTranslationY, 0f)
+            Log.e("taag", " X $translationX, Y $translationY")
             invalidate()
         }
 
         fun addScale(sx: Float) {
             scaleFactor = (scaleFactor * sx).coerceIn(minScaleFactor, maxScaleFactor)
+            translationX = (translationX * sx).coerceIn(minTranslationX, 0f)
+            translationY = (translationY * sx).coerceIn(minTranslationY, 0f)
+            Log.e("taag", "$scaleFactor , X $translationX, Y $translationY")
             invalidate()
         }
 
