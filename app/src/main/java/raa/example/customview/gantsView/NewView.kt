@@ -378,16 +378,19 @@ class NewView @JvmOverloads constructor(
         fun addTranslation(dx: Float, dy: Float) {
             translationX = (translationX + dx).coerceIn(minTranslationX, 0f)
             translationY = (translationY + dy).coerceIn(minTranslationY, 0f)
-            Log.e("taag", " X $translationX, Y $translationY")
+            Log.e("tag_ Translation", " X $translationX, Y $translationY")
             invalidate()
         }
 
         fun addScale(sx: Float) {
             scaleFactor = (scaleFactor * sx).coerceIn(minScaleFactor, maxScaleFactor)
-            translationX = (translationX * sx).coerceIn(minTranslationX, 0f)
-            translationY = (translationY * sx).coerceIn(minTranslationY, 0f)
-            Log.e("taag", "$scaleFactor , X $translationX, Y $translationY")
-            invalidate()
+            if(scaleFactor > minScaleFactor && scaleFactor < maxScaleFactor){
+                translationX = (translationX * sx).coerceIn(minTranslationX, 0f)
+                translationY = (translationY * sx).coerceIn(minTranslationY, 0f)
+                Log.e("taag of scale", "$scaleFactor , X $translationX, Y $translationY")
+                invalidate()
+            }
+
         }
 
 
